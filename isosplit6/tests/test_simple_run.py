@@ -1,6 +1,7 @@
-from isosplit6 import isosplit6
 import numpy as np
-from numpy.typing import NDArray
+
+from isosplit6 import isosplit6
+
 
 def test_isosplit6_runs():
     """
