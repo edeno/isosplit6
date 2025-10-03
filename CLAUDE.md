@@ -36,16 +36,19 @@ The project consists of two main components:
 **DO NOT MODIFY THE C++ CODE IN `src/` DIRECTORY**
 
 The C++ implementation in `src/` serves as the reference implementation and ground truth for all testing. It is used to:
+
 - Generate reference outputs for validating NumPy/JAX implementations
 - Provide the production-ready, performance-optimized version
 - Serve as the authoritative specification of algorithm behavior
 
 Any changes to the C++ code would:
+
 - Invalidate all reference outputs in `isosplit6/tests/reference_outputs/`
 - Break regression tests that verify NumPy/JAX match C++
 - Potentially introduce bugs in the production implementation
 
 If you need to fix bugs or make improvements:
+
 1. First implement and test in NumPy/JAX versions
 2. Document the issue and proposed fix
 3. Consult with maintainers before modifying C++ code
@@ -158,11 +161,13 @@ ruff format .
 **ALL Python functions MUST have complete type annotations.**
 
 Use type hints for:
+
 - Function parameters
 - Return values
 - Instance variables (when not obvious)
 
 Example:
+
 ```python
 from typing import Optional, Tuple
 import numpy as np
@@ -187,6 +192,7 @@ For numpy arrays, use `np.ndarray` (not `np.array` or `numpy.ndarray`).
 **ALL public functions and classes MUST have NumPy-style docstrings.**
 
 NumPy docstring format:
+
 ```python
 def function_name(param1: type1, param2: type2) -> return_type:
     """
@@ -224,16 +230,19 @@ def function_name(param1: type1, param2: type2) -> return_type:
 ```
 
 **Required sections:**
+
 - Summary (one line)
 - Parameters (if any)
 - Returns (if not None)
 
 **Optional but recommended sections:**
+
 - Examples (especially for public API)
 - Notes (for complex algorithms)
 - References (for academic implementations)
 
 **NOT Google-style or reStructuredText:**
+
 ```python
 # ❌ WRONG - Don't use Google style
 def bad_example(x, y):

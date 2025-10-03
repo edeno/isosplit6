@@ -18,6 +18,7 @@ from .isotonic import (
     jisotonic5_sort,
     jisotonic5_updown,
 )
+from .parcelate import parcelate2
 from .utils import (
     compute_centroid,
     compute_centroids,
@@ -43,4 +44,5 @@ __all__ = [
     "jisotonic5_updown",
     "mahalanobis_distance",
     "matrix_inverse_stable",
+    "parcelate2",
 ]

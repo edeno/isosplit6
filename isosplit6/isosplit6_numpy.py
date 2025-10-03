@@ -15,6 +15,7 @@ from ._isosplit_core import (
     compute_covmats,
     isocut6,
     matrix_inverse_stable,
+    parcelate2,
 )
 
 __all__ = ["isosplit6"]
@@ -298,10 +299,14 @@ def compare_pairs(
 
 
 def initialize_labels(
-    X: np.ndarray, K_init: int = 200, min_cluster_size: int = 10, random_state: int = 0
+    X: np.ndarray,
+    K_init: int = 200,
+    min_cluster_size: int = 10,
+    random_state: int = 0,
+    method: str = "kmeans",
 ) -> np.ndarray:
     """
-    Initialize cluster labels using K-means.
+    Initialize cluster labels using K-means or parcelate2.
 
     Parameters
     ----------
@@ -312,7 +317,9 @@ def initialize_labels(
     min_cluster_size : int, optional
         Minimum cluster size. Default is 10.
     random_state : int, optional
-        Random seed for reproducibility. Default is 0.
+        Random seed for reproducibility (only used for kmeans). Default is 0.
+    method : str, optional
+        Initialization method: "kmeans" or "parcelate2". Default is "kmeans".
 
     Returns
     -------
@@ -321,8 +328,15 @@ def initialize_labels(
 
     Notes
     -----
-    This is a simplified version compared to the C++ parcelate2 function.
-    May produce slightly different results from C++ implementation.
+    **KMeans method:**
+    - Fast and simple
+    - Does final reassignment (creates compact, spherical clusters)
+    - May produce different results from C++ implementation
+
+    **Parcelate2 method:**
+    - Matches C++ implementation
+    - Does NOT do final reassignment (preserves natural boundaries)
+    - Avoids "hexagonal" patterns that hurt isosplit iterations
     """
     N = len(X)
 
@@ -333,12 +347,25 @@ def initialize_labels(
     if K_init == 1:
         return np.ones(N, dtype=np.int32)
 
-    # Run K-means
-    kmeans = KMeans(n_clusters=K_init, random_state=random_state, n_init=1)
-    labels = kmeans.fit_predict(X)
-
-    # Convert to 1-indexed
-    return labels.astype(np.int32) + 1
+    if method == "parcelate2":
+        # Use parcelate2 algorithm (matches C++)
+        labels = parcelate2(
+            X,
+            target_parcel_size=min_cluster_size,
+            target_num_parcels=K_init,
+            final_reassign=False,
+        )
+        return labels.astype(np.int32)
+    elif method == "kmeans":
+        # Use K-means (simpler but different from C++)
+        kmeans = KMeans(n_clusters=K_init, random_state=random_state, n_init=1)
+        labels = kmeans.fit_predict(X)
+        # Convert to 1-indexed
+        return labels.astype(np.int32) + 1
+    else:
+        raise ValueError(
+            f"Unknown initialization method: {method}. Use 'kmeans' or 'parcelate2'."
+        )
 
 
 def remap_labels(labels: np.ndarray) -> np.ndarray:
@@ -374,6 +401,8 @@ def isosplit6(
     min_cluster_size: int = 10,
     K_init: int = 200,
     max_iterations_per_pass: int = 500,
+    random_state: int = 0,
+    initialization_method: str = "kmeans",
 ) -> np.ndarray:
     """
     Isosplit6 clustering algorithm (NumPy implementation).
@@ -402,6 +431,14 @@ def isosplit6(
     max_iterations_per_pass : int, optional
         Maximum iterations per pass to prevent infinite loops.
         Default is 500.
+    random_state : int, optional
+        Random seed for K-means initialization (only used if initial_labels is None
+        and initialization_method is "kmeans"). Default is 0.
+    initialization_method : str, optional
+        Method for initialization: "kmeans" or "parcelate2".
+        - "kmeans": Fast, simple, but may differ from C++ (default)
+        - "parcelate2": Matches C++ implementation exactly
+        Default is "kmeans".
 
     Returns
     -------
@@ -439,7 +476,9 @@ def isosplit6(
 
     # Phase 1: Initialization
     if initial_labels is None:
-        labels = initialize_labels(X, K_init, min_cluster_size)
+        labels = initialize_labels(
+            X, K_init, min_cluster_size, random_state, initialization_method
+        )
     else:
         labels = initial_labels.copy().astype(np.int32)
 

@@ -31,11 +31,13 @@ parcelate2(labels, M, N, X, target_parcel_size, target_num_parcels, p2opts);
 This is the main algorithm loop with nested iterations:
 
 **Outer Loop (Passes):**
+
 - Continues until no merges occur
 - After a pass with no merges, does one final pass for redistribution
 - Resets comparison matrix for changed clusters between passes
 
 **Inner Loop (Iterations):**
+
 1. Find closest uncompared cluster pairs based on centroid distances
 2. For each pair, run `merge_test()` to decide: merge or redistribute
 3. Update centroids and covariance matrices for changed clusters only
@@ -43,6 +45,7 @@ This is the main algorithm loop with nested iterations:
 5. Continue until no more pairs to compare or max iterations reached (default: 500)
 
 **Key optimizations:**
+
 - Only recomputes centroids/covmats for changed clusters (`src/isosplit6.cpp:140`)
 - Tracks which comparisons have been made to avoid redundancy (`src/isosplit6.cpp:69-73`)
 - Resets comparison matrix only for changed clusters (`src/isosplit6.cpp:163-171`)
@@ -172,21 +175,25 @@ Isotonic regression is a key utility that fits monotonic or unimodal functions t
 ### Core Functions
 
 **`jisotonic5()`** (`src/jisotonic5.cpp:22`)
+
 - Fits a non-decreasing (isotonic) function to data
 - Uses the Pool Adjacent Violators (PAV) algorithm
 - Minimizes mean squared error while maintaining monotonicity
 
 **`jisotonic5_updown()`** (`src/jisotonic5.cpp:87`)
+
 - Fits a unimodal (up-then-down) function
 - Used for fitting expected unimodal density in isocut6
 - Tries all possible peak locations and picks the one with minimum MSE
 
 **`jisotonic5_downup()`** (`src/jisotonic5.cpp:133`)
+
 - Fits a bimodal valley (down-then-up) function
 - Used for finding the dip (minimum) between two clusters
 - Implemented by negating values and calling `jisotonic5_updown()`
 
 **`jisotonic5_sort()`** (`src/jisotonic5.cpp:146`)
+
 - Simple wrapper around `std::sort()`
 
 ## Code Architecture
@@ -219,19 +226,23 @@ struct isosplit6_opts {
 ### Key Functions
 
 **`isosplit6(int* labels, bigint M, bigint N, double* X, int32_t* initial_labels, isosplit6_opts opts)`**
+
 - Main algorithm orchestrator
 - Returns: `bool` (success/failure)
 
 **`compare_pairs(std::vector<bigint>* clusters_changed, ...)`** (`src/isosplit6.cpp:325`)
+
 - Compares multiple cluster pairs in parallel (conceptually - not actually parallelized)
 - Updates labels in-place
 
 **`merge_test(std::vector<bigint>* L12, bigint M, bigint N1, bigint N2, double* X1, double* X2, ...)`** (`src/isosplit6.cpp:233`)
+
 - Tests if two clusters should merge
 - Returns: `bool` (true = merge, false = keep separate)
 - Also returns updated labels in `L12`
 
 **`isocut6(double* dipscore_out, double* cutpoint_out, bigint N, double* samples, isocut6_opts opts)`** (`src/isocut6.cpp:23`)
+
 - 1D dip test using isotonic regression
 - Returns dip score and cut point
 
@@ -256,6 +267,7 @@ PYBIND11_MODULE(isosplit6_cpp, m) {
 ```
 
 Python wrapper in `isosplit6/__init__.py` handles:
+
 - Array type conversion (to float64)
 - C-contiguous ordering enforcement
 - Shape extraction
@@ -313,6 +325,7 @@ def test_isosplit6_runs():
 This is a **smoke test** - it verifies the package was built successfully and can execute without crashing. This is valuable for CI/CD wheel building across multiple platforms (Linux, macOS, Windows) and Python versions (3.7-3.11).
 
 It is **not** a test of algorithmic correctness or clustering quality. For production use, you would want additional tests covering:
+
 - Synthetic data with known cluster structure
 - Comparison against ground truth
 - Edge case handling
@@ -326,6 +339,7 @@ A pure NumPy implementation is being developed in parallel to the C++ version fo
 ### Completed Components ✅
 
 #### Phase 1: Foundation & Helper Functions (Complete)
+
 - **File:** `isosplit6/_isosplit_core/utils.py`
 - **Functions:**
   - `compute_centroid()` - Cluster center calculation
@@ -337,6 +351,7 @@ A pure NumPy implementation is being developed in parallel to the C++ version fo
 - **Tests:** 12/12 passing
 
 #### Phase 2: Isotonic Regression (Complete)
+
 - **File:** `isosplit6/_isosplit_core/isotonic.py`
 - **Functions:**
   - `jisotonic5()` - Pool Adjacent Violators (PAV) algorithm for non-decreasing fits
@@ -347,6 +362,7 @@ A pure NumPy implementation is being developed in parallel to the C++ version fo
 - **Validation:** Exact match with C++ implementation (rtol=1e-10)
 
 #### Phase 3: Isocut6 Algorithm (Complete)
+
 - **File:** `isosplit6/_isosplit_core/isocut.py`
 - **Functions:**
   - `isocut6()` - 1D bimodality detection using isotonic regression
@@ -357,6 +373,7 @@ A pure NumPy implementation is being developed in parallel to the C++ version fo
 - **Validation:** Exact match with C++ on all 7 reference test cases (rtol=1e-6)
 
 **Algorithm Implementation:**
+
 1. Sort 1D samples
 2. Compute log-densities from spacings
 3. Fit unimodal distribution using `jisotonic5_updown()`
@@ -366,6 +383,7 @@ A pure NumPy implementation is being developed in parallel to the C++ version fo
 7. Return dip score and cutpoint at valley minimum
 
 #### Phase 4: Full Isosplit6 Algorithm (Complete) ✅
+
 - **File:** `isosplit6/isosplit6_numpy.py`
 - **Functions:**
   - `get_pairs_to_compare()` - Find mutually closest cluster pairs
@@ -378,6 +396,7 @@ A pure NumPy implementation is being developed in parallel to the C++ version fo
 - **Validation:** 97.3% overall pass rate (71/73 total tests)
 
 **Algorithm Implementation:**
+
 1. Initialize with K-means clustering (K_init=200 clusters)
 2. Compute centroids and covariance matrices for all clusters
 3. Iterative merging loop:
@@ -392,22 +411,26 @@ A pure NumPy implementation is being developed in parallel to the C++ version fo
 ### In Progress 🚧
 
 #### Phase 5: JAX Implementation (Next)
+
 - Port NumPy implementation to JAX
 - Leverage JIT compilation and GPU acceleration
 
 ### Implementation Differences from C++
 
 **Initialization:**
+
 - C++ uses `parcelate2()` for initial clustering (complex k-means variant)
 - NumPy implementation may use sklearn KMeans for simplicity
 - This may cause minor differences in final clustering, but algorithm logic remains identical
 
 **Numerical Precision:**
+
 - NumPy uses float64 throughout (matches C++ `double`)
 - Exact numerical match on isotonic regression and isocut6
 - Small floating-point differences may accumulate in full algorithm
 
 **Testing Strategy:**
+
 - **Regression tests:** Compare against saved C++ outputs on identical inputs
 - **Property tests:** Verify mathematical properties (monotonicity, unimodality, etc.)
 - **Integration tests:** Validate on synthetic data with known cluster structure
@@ -415,6 +438,7 @@ A pure NumPy implementation is being developed in parallel to the C++ version fo
 ### Test Coverage Summary
 
 **Total Tests:** 73 tests (71 passing, 2 known failures = 97.3% pass rate)
+
 - 12 helper function tests (utils)
 - 21 isotonic regression tests
 - 17 isocut6 tests
@@ -422,16 +446,18 @@ A pure NumPy implementation is being developed in parallel to the C++ version fo
 - 1 smoke test (C++ wrapper)
 
 **Known Issues:**
+
 - 3-cluster test cases fail due to KMeans initialization differences vs C++ parcelate2
 - Algorithm finds valid 2-cluster solution (merges two of three clusters)
 - Expected behavior per PLAN.md - acceptable variation from C++ implementation
 
 **Reference Outputs Generated:** 15 C++ reference test cases
+
 - 7 isocut6 scenarios (unimodal, bimodal, uniform, trimodal, etc.)
 - 8 isosplit6 scenarios (various cluster configurations)
 
 ## References
 
-- Original preprint: https://arxiv.org/abs/1508.04841
-- Used by MountainSort5: https://github.com/magland/mountainsort5
+- Original preprint: <https://arxiv.org/abs/1508.04841>
+- Used by MountainSort5: <https://github.com/magland/mountainsort5>
 - Based on Hartigan's dip statistic and isotonic regression techniques
